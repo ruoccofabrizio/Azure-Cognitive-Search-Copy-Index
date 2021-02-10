@@ -3,9 +3,9 @@
 Sample python code to copy Azure Cognitive Search indexes
 
 ## How to run it
-  python main.py 
+  python main.py --parameter
 
-| Paramter                          | Value                                                      | Note                                           |
+| Parameter                          | Value                                                      | Note                                           |
 |---------------------------------- |------------------------------------------------------------|------------------------------------------------|
 | --src_service          			| SOURCE SERVICE              								 | Required									      |
 | --src_service_key      			| SOURCE SERVICE KEY        								 | Required                                       |
