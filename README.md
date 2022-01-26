@@ -1,6 +1,6 @@
 # Azure-Cognitive-Search-Copy-Index
 
-Sample python code to copy Azure Cognitive Search indexes
+Sample python code to copy Azure Cognitive Search indexes or dump index content on an Azure Blob Storage
 
 ## How to run it
   python main.py --parameters
