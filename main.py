@@ -1,8 +1,11 @@
 import requests
 import json
-import math
 import argparse
 import logging
+from azure.storage.blob import BlobServiceClient, ContentSettings
+import json
+from multiprocessing.pool import ThreadPool
+
 
 # Define next chunk to process in the batch
 def get_next_chunk(current_val):    
@@ -53,6 +56,18 @@ def push_docs(all_documents, dst_endpoint, dst_headers):
         # print(index_content)
 
 
+def push_doc_on_blob(doc):
+    # Push data on blob
+    blob_service_client = BlobServiceClient.from_connection_string(blob_connection_string)
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=f"{doc[doc_key]}.json")
+    blob_client.upload_blob(json.dumps(doc), content_settings = ContentSettings(content_type='application/json'))
+
+
+def push_docs_on_blob(all_documents):
+    with ThreadPool(processes=int(50)) as pool:
+      return pool.map(push_doc_on_blob, all_documents)
+
+
 def push_batch(batch_documents, dst_endpoint, dst_headers):
 
     search_docs = {
@@ -95,10 +110,14 @@ if __name__ == "__main__":
                         help='Azure Cognitive Search DESTINATION Service KEY')
     parser.add_argument('--src_index', dest="src_index", required=True,
                         help='Azure Cognitive Search SOURCE Index')
-    parser.add_argument('--dst_index', dest="dst_index", required=True,
+    parser.add_argument('--dst_index', dest="dst_index", required=False,
                         help='Azure Cognitive Search DESTINATION Index')                       
     parser.add_argument('--filter_by', dest="filter_by", required=True,
                         help='Azure Cognitive Search DESTINATION Index')      
+    parser.add_argument('--dump_on_blob', dest="blob_connection_string", required=False,
+                        help="Azure Blob Storage Connection String for index dump")
+    parser.add_argument('--container_name', dest="container_name", required=False,
+                        help="Azure Blob Storage container for index dump")
 
     args = parser.parse_args()
 
@@ -112,6 +131,9 @@ if __name__ == "__main__":
     dst_index = args.dst_index
 
     filter_by = args.filter_by
+
+    blob_connection_string = args.blob_connection_string
+    container_name = args.container_name
 
     logging.info(f"Copying :\n\tSOURCE SERVICE: {src_service} INDEX: {src_index}\n\tDESTINATION SERVICE {dst_service} INDEX: {dst_index}\n\tFiltering by: {filter_by}")
 
@@ -146,17 +168,23 @@ if __name__ == "__main__":
         documents = []
         documents = get_all_docs(low_b, high_b, src_endpoint, src_headers, filter_by=filter_by)
         logging.info(len(documents))
-        push_docs(documents, dst_endpoint, dst_headers)
+        if dst_index != None:
+            push_docs_on_blob(documents, dst_endpoint, dst_headers)
+        if blob_connection_string != None:
+            doc_key = filter_by
+            push_docs_on_blob(documents)
 
 
     # Check
-    searchstring = '&search=*&$count=true'#&$orderby=metadata_storage_last_modified desc'
+    if dst_index != None:
 
-    url = dst_endpoint + "indexes/" + dst_index +"/docs" + api_version + searchstring
-    response  = requests.get(url, headers=dst_headers, json=searchstring)
-    query = response.json()
+        searchstring = '&search=*&$count=true'#&$orderby=metadata_storage_last_modified desc'
+
+        url = dst_endpoint + "indexes/" + dst_index +"/docs" + api_version + searchstring
+        response  = requests.get(url, headers=dst_headers, json=searchstring)
+        query = response.json()
 
 
-    docCount = query['@odata.count']
+        docCount = query['@odata.count']
 
-    logging.info(f"Copied {docCount} documents")
+        logging.info(f"Copied {docCount} documents")
