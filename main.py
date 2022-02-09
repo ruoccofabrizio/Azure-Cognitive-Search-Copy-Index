@@ -169,7 +169,7 @@ if __name__ == "__main__":
         documents = get_all_docs(low_b, high_b, src_endpoint, src_headers, filter_by=filter_by)
         logging.info(len(documents))
         if dst_index != None:
-            push_docs_on_blob(documents, dst_endpoint, dst_headers)
+            push_docs(documents, dst_endpoint, dst_headers)
         if blob_connection_string != None:
             doc_key = filter_by
             push_docs_on_blob(documents)
